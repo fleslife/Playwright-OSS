@@ -1,0 +1,9 @@
+{
+	"mcpServers": {
+		"dbx": {
+			"type": "stdio",
+			"command": "C:\\\\Users\\\\flesp\\\\.dbx\\\\bin\\\\dbx-mcp.exe",
+			"args": []
+		}
+	}
+}

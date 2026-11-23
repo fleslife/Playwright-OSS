@@ -3,6 +3,7 @@
 node_modules/
 /test-results/
 /playwright-report/
+/reports/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
@@ -10,3 +11,30 @@ node_modules/
 # Environment variables (jangan commit secret)
 .env
 .env.local
+
+# ===== Suitest (jangan commit) =====
+# Runtime data lokal Suitest (database, virtualenv, kredensial, artifacts, log)
+.suitest/
+
+# Output hasil generate/run Suitest (discovery, reports, evidence)
+suitest-output/
+
+# Log & screenshot runtime provider Playwright MCP (berisi tangkapan halaman)
+.playwright-mcp/
+
+# Config lokal Suitest — berisi kredensial test (username/password OSS)
+suitest.config.json
+
+# Draft issue internal Suitest
+SUITEST_RECORDER_ISSUE.md
+
+# Script integrasi/impor hasil ke Suitest TCM
+scripts/suitest-ingest.mjs
+
+# Folder temp hasil generate test Suitest
+test-tmp/
+
+# ===== Tetap di-commit (Playwright & template) =====
+# .env.example  -> placeholder aman, wajib di-commit sebagai template
+# .github/      -> workflow CI (Playwright)
+# tests/, playwright.config.js, package.json -> kode & config Playwright

@@ -7,7 +7,12 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:report": "playwright show-report",
-    "test:open-report": "start playwright-report/index.html"
+    "test:open-report": "start playwright-report/index.html",
+    "test:kkpr": "node scripts/run-full-kkpr.mjs",
+    "ingest:suitest": "node scripts/suitest-ingest.mjs",
+    "export:uat": "node scripts/export-uat.mjs",
+    "report:pdf": "node scripts/generate-pdf-report.mjs",
+    "report:pdf:last": "node scripts/generate-pdf-from-last.mjs"
   },
   "keywords": [],
   "author": "",

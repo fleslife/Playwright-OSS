@@ -2,24 +2,30 @@ import { expect } from '@playwright/test';
 
 const ZOOM_OUT_SCALE = 0.8; // zoom-out 80%
 const LOGIN_URL = 'https://ui-login.oss.go.id/login';
+const STAGING_LOGIN_URL = 'https://ui-login-stg.oss.go.id/login';
 // Login sukses bisa mendarat di #/dashboard ATAU #/?auth-code (proses SPA),
-// namun selalu di domain perizinan.oss.go.id
-const APP_URL_REGEX = /perizinan\.oss\.go\.id/i;
+// namun selalu di domain aplikasi perizinan Production atau Staging.
+const APP_URL_REGEX = /(?:ui-)?perizinan(?:-stg)?\.oss\.go\.id/i;
 
 /**
  * Login ke OSS dan memastikan sudah sampai di dashboard.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ username?: string, password?: string, baseURL?: string, zoomOut?: boolean }} [opts]
+ * @param {{ environment?: 'production' | 'staging', username?: string, password?: string, baseURL?: string, zoomOut?: boolean }} [opts]
  */
 export async function login(page, opts = {}) {
-  const username = opts.username ?? process.env.LOGIN_USERNAME;
-  const password = opts.password ?? process.env.LOGIN_PASSWORD;
-  const baseURL = opts.baseURL ?? LOGIN_URL;
+  const environment = opts.environment ?? 'production';
+  const isStaging = environment === 'staging';
+  const username = opts.username ?? process.env[isStaging ? 'STAGING_LOGIN_USERNAME' : 'LOGIN_USERNAME'];
+  const password = opts.password ?? process.env[isStaging ? 'STAGING_LOGIN_PASSWORD' : 'LOGIN_PASSWORD'];
+  const baseURL = opts.baseURL
+    ?? process.env[isStaging ? 'STAGING_LOGIN_URL' : 'LOGIN_URL']
+    ?? (isStaging ? STAGING_LOGIN_URL : LOGIN_URL);
   const zoomOut = opts.zoomOut ?? false;
 
   if (!username || !password) {
-    throw new Error('LOGIN_USERNAME dan LOGIN_PASSWORD belum diisi di file .env');
+    const prefix = isStaging ? 'STAGING_LOGIN' : 'LOGIN';
+    throw new Error(`${prefix}_USERNAME dan ${prefix}_PASSWORD belum diisi di file .env`);
   }
 
   // Zoom-out sebelum navigasi agar konten tampil lebih banyak sejak awal
