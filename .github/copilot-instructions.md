@@ -63,3 +63,21 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+## 5. Project Skills
+
+Load these before starting related work:
+
+- **PKKPR / KKPR scenarios (shared)** — [docs/SKILL_PKKPR_Scenarios.md](../docs/SKILL_PKKPR_Scenarios.md)
+  Shared skeleton, per-scenario KBLI/result deltas, Penguasaan Lahan branches (date picker, 3 tenure
+  paths, Pasal 27 2.c./2.d., 7-point Pernyataan modal), the upload-never-awaited pitfall, and which
+  specs are proven green vs still empty.
+- **MBR / KKPR Kondisi Tertentu automation** — [docs/SKILL_MBR_KKPR_Automation.md](../docs/SKILL_MBR_KKPR_Automation.md)
+  Locators, MBR-vs-KKPR_Penilaian differences, upload pitfalls, and how to run Playwright in this repo.
+- **Migas / KKPR Kondisi Tertentu automation** — [docs/SKILL_MIGAS_KKPR_Automation.md](../docs/SKILL_MIGAS_KKPR_Automation.md)
+  KBLI 06100 (no KBLI-2020/2025 mapping block), ruang lingkup "first option", the penetapan wilayah
+  kerja upload + Lihat Dokumen/Kembali preview step, and Migas-specific pitfalls.
+- **SKPBKI / KKPR Kondisi Tertentu automation** - [docs/SKILL_SKPBKI_KKPR_Automation.md](../docs/SKILL_SKPBKI_KKPR_Automation.md)
+  KBLI 15201 + ruang lingkup "Seluruh", the scale radio that refuses `check()` (click its label),
+  the `> 10M` spacing, the outside-industrial-estate verification checkbox, and the two issued
+  documents (`Belum melengkapi persyaratan` + `Menunggu Verifikasi K/L`).

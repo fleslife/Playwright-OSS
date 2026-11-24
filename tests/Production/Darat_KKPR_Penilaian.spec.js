@@ -1,8 +1,16 @@
 ﻿import { test, expect } from "@playwright/test";
 import { login } from "../helpers/login.js";
 
+/** Akhiran nama usaha memakai tanggal run dengan format ddMMyyyy, contoh: 24112026. */
+function tanggalDdmmyyyy() {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  return `${dd}${mm}${now.getFullYear()}`;
+}
+
 const NAMA_LOKASI_TEST = "Automation_Darat_NonRDTR";
-const NAMA_USAHA_TEST = "AutomationTest KKPR_Penilaian";
+const NAMA_USAHA_TEST = `AutomationTest KKPR_Penilaian_${tanggalDdmmyyyy()}`;
 
 test("Positive Case: KKPR Penilaian", async ({ page }) => {
   // Timeout total test dinaikkan karena banyak expect memakai timeout 60s.

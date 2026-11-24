@@ -1,9 +1,28 @@
 ﻿import { test, expect } from "@playwright/test";
 import { login } from "../helpers/login.js";
 
+/** Akhiran nama usaha memakai tanggal run dengan format ddMMyyyy, contoh: 24112026. */
+function tanggalDdmmyyyy() {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  return `${dd}${mm}${now.getFullYear()}`;
+}
+
 const NAMA_LOKASI_TEST = "Automation_Darat_NonRDTR";
-const NAMA_USAHA_TEST = "AutomationTest KKPR_Penilaian";
+const NAMA_USAHA_TEST = `AutomationTest KKPR_Penilaian_${tanggalDdmmyyyy()}`;
 const FILE_DOKUMEN = "./tests/UploadFile/SampleDocument.pdf";
+
+/**
+ * Menunggu widget upload selesai. Tombol Proses bisa diklik sebelum file selesai
+ * diunggah; server lalu menolak validasi tanpa pesan error di UI sehingga
+ * halaman tampak "hang" di step yang sama.
+ */
+async function tungguUploadSelesai(scope) {
+  await expect(scope.locator(".v-progress-linear--active")).toHaveCount(0, { timeout: 120000 });
+  await expect(scope.locator(".v-input--error")).toHaveCount(0, { timeout: 60000 });
+}
+
 
 test("Positive Case: KKPR Penilaian", async ({ page }) => {
   // Timeout total test dinaikkan karena banyak expect memakai timeout 60s.
@@ -116,6 +135,9 @@ test("Positive Case: KKPR Penilaian", async ({ page }) => {
   await page.locator("//input[@placeholder='Rencana Jumlah Bangunan']").fill("1");
   await page.locator("//input[@placeholder='Rencana Jumlah Lantai Bangunan']").fill("2");
   await page.locator("//input[@placeholder='Rencana Luas Lantai Bangunan']").fill("100");
+
+  // Proses tidak akan berjalan jika upload Rencana Teknis belum selesai.
+  await tungguUploadSelesai(page);
 
   const tombolProses = page.getByRole("button", { name: "Proses", exact: true });
   await expect(tombolProses).toBeEnabled({ timeout: 60000 });
