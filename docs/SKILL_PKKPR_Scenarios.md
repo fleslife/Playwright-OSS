@@ -17,15 +17,17 @@ bagian 1 (perintah `node .\node_modules\@playwright\test\cli.js ...`, bukan `npx
 | `tests/Staging/Darat_Migas.spec.js` | staging | `06100` | Lolos |
 | `tests/Staging/Darat_SKPBKI.spec.js` | staging | `15201` | Lolos |
 | `tests/Staging/Darat_WIUP_05101.spec.js` | staging | `05101` | Lolos |
+| `tests/Staging/Darat_WIUP_06202.spec.js` | staging | `06202` | Lolos |
 | `tests/Staging/Darat_PenguasaanLahan_MilikSendiri.spec.js` | staging | `56101` | Lolos |
 | `tests/Staging/Darat_PenguasaanLahan_NonKondisi.spec.js` | staging | `56101` | Lolos |
+| `tests/Staging/Darat_UUCK.spec.js` | staging | `56101` | Lolos |
 | `tests/Production/Darat_KKPR_Penilaian.spec.js` | production | `56101` | Lolos |
 | `tests/Production/Darat_PenguasaanLahan.spec.js` | production | `56101` | Lolos |
 
 ### Belum diimplementasikan (file 0 byte)
 
 `Darat_RDTR`, `Darat_Mikro`, `Darat_SatuLini`, `Darat_WIUP_WIUPK`,
-`Darat_UUCK`, `Darat_IKN`, `Darat_KI`, `Darat_KEK`, `Darat_Kolektif`,
+`Darat_IKN`, `Darat_KI`, `Darat_KEK`, `Darat_Kolektif`,
 `Darat_KPBPB_Batam`. Jangan diasumsikan sudah berjalan.
 
 ---
@@ -92,6 +94,23 @@ await radioPerizinanLama.scrollIntoViewIfNeeded();
 await radioPerizinanLama.click();
 ```
 
+**Varian UUCK**: pertanyaan "Apakah sudah memiliki perizinan berusaha yang
+Berlaku Efektif sebelum implementasi UU No. 11 Tahun 2020 tentang Cipta Kerja?"
+dijawab **Ya** (`value="02"`, bukan `01`). Locator grup via xpath ancestor:
+
+```js
+const grupUuck = page
+  .getByText("Apakah sudah memiliki perizinan berusaha yang Berlaku Efektif", { exact: false })
+  .first()
+  .locator("xpath=ancestor::*[.//input[@type='radio']][1]");
+await grupUuck.getByText("Ya", { exact: true }).first().click();
+await expect(grupUuck.getByRole("radio", { name: "Ya", exact: true })).toBeChecked();
+```
+
+Konsekuensi: form step 2 menampilkan blok "Perizinan Berusaha yang Berlaku
+Efektif Sebelum Implementasi UU No. 11 Tahun 2020" berisi Penerbit Izin,
+Nomor Izin, Tanggal Terbit, dan upload Dokumen izin — lihat bagian 4.3.
+
 Catatan: radio `Tidak` harus diklik lewat `getByText(...).nth(n)` karena input
 native-nya tertutup Vuetify; `toBeChecked` tetap bisa dipakai untuk verifikasi.
 
@@ -125,8 +144,11 @@ Untuk MBR ada dua field KBLI — lihat `docs/SKILL_MBR_KKPR_Automation.md`.
 
 ### 4.1 Blok khusus WIUP/WIUPK (KBLI 05xxx)
 
-Berlaku untuk `Darat_WIUP_05101.spec.js`. Blok ini berada di langkah 2, setelah
-field `Nama Usaha`, dan hanya muncul bila KBLI kelompok pertambangan dipilih.
+Berlaku untuk `Darat_WIUP_05101.spec.js` — varian yang **radio-nya masih bisa
+diubah**. Blok ini berada di langkah 2, setelah field `Nama Usaha`, dan hanya
+muncul bila KBLI kelompok pertambangan dipilih. Untuk KBLI `06202` lihat 4.2.
+Durasi normal `05101`: ±55–58 detik per run chromium (setelah helper popup
+dipisah; sebelumnya ±82 detik).
 
 ```js
 const pertanyaanWiup = page.getByText("Apakah Sudah Memiliki WIUP/WIUPK/WIP?", { exact: false }).first();
@@ -172,6 +194,140 @@ const NOMOR_WIUP_TEST = tanggalDdmmyyyy();
 
 `padStart(2, "0")` menjaga hari/bulan tetap 2 digit dan `getFullYear()` selalu
 4 digit, sehingga hasilnya murni numerik tanpa pemisah.
+
+### 4.2 Varian WIUP 06202: "Belum" terkunci
+
+`Darat_WIUP_06202.spec.js` (Pertambangan Panas Bumi, ruang lingkup
+`Tahap Eksplorasi`) memakai blok yang sama, tetapi kedua radio **tidak bisa
+diubah**: `Belum` sudah terpilih dan kedua opsi `disabled`. Tidak ada field
+`Nomor WIUP/WIUPK/WIP` maupun upload `Unggah Dokumen WIUP/WIUPK/WIP`, jadi
+jangan salin bagian itu dari `05101`.
+
+```js
+const grupWiup = page
+  .getByText("Apakah Sudah Memiliki WIUP/WIUPK/WIP?", { exact: false })
+  .first()
+  .locator("xpath=ancestor::*[.//input[@type='radio']][1]");
+const radioBelumWiup = grupWiup.getByRole("radio", { name: "Belum", exact: true });
+
+await expect(radioBelumWiup).toBeChecked({ timeout: 60000 });
+await expect(radioBelumWiup).toBeDisabled({ timeout: 60000 });
+await expect(grupWiup.getByRole("radio", { name: "Sudah", exact: true })).toBeDisabled({ timeout: 60000 });
+```
+
+Jangan memakai `check()`/`click()` di sini — state-nya sudah final, cukup
+assert `toBeChecked` + `toBeDisabled`. Karena tidak ada upload dokumen WIUP,
+helper `lihatDokumenDanKembali` di spec ini **tidak dipakai** dan sudah dihapus.
+
+Ruang lingkup `Tahap Eksplorasi` dipilih eksplisit (bukan opsi pertama):
+`page.locator(".v-overlay--active .v-list-item").filter({ hasText: "Tahap Eksplorasi" })`.
+Langkah 3 dan dialog akhir sama dengan 05101 — lihat "Varian WIUP: step 3 hanya
+upload Rencana Teknis" dan "Varian WIUP: konfirmasi ESDM di akhir langkah 2".
+Durasi normal: ±50 detik per run chromium (setelah helper popup dipisah).
+
+---
+
+### 4.3 Varian UUCK: blok Perizinan efektif sebelum UU Cipta Kerja
+
+UUCK adalah varian paling pendek: **hanya 2 langkah**. Yang tidak ada di spec ini:
+
+- blok Penguasaan Lahan (bagian 5) — tidak ada pertanyaan lahan;
+- blok Rencana Teknis Bangunan (bagian 6) — tidak ada upload kedua;
+- modal Pernyataan 7 poin (bagian 7.1) — `Proses` langsung ke dialog konfirmasi.
+
+Urutan lengkap `Darat_UUCK.spec.js` (referensi cepat):
+
+```
+login -> Perizinan Berusaha -> Kelola Usaha -> Kegiatan Usaha -> Tambah Kegiatan Usaha
+[1] Data Lokasi Usaha: pilih lokasi, Obvitnas/PSN "Tidak", pertanyaan UUCK "Ya"  -> Selanjutnya
+[2] Kegiatan Usaha Utama -> KBLI 56101 -> popup penyesuaian KBLI (Mengerti)
+    -> ruang lingkup Restoran -> Tambah Bidang Usaha -> popup RDTR (Mengerti)
+    -> Nama Usaha -> blok Perizinan efektif (Penerbit, Nomor, Tanggal 1, upload + pratinjau)
+    -> Proses -> dialog "Yakin Melanjutkan Permohonan Ini?" (Mengerti)
+[3] Detail Perizinan: tab Persyaratan Dasar, tabel Tata Ruang & Lingkungan kosong
+```
+
+Blok Perizinan efektif muncul otomatis setelah Nama Usaha diisi (tidak perlu radio
+pemicu tambahan). Isinya: Penerbit Izin, Nomor Izin, Tanggal Terbit, upload
+Dokumen izin.
+
+```js
+await expect(
+  page.getByText("Perizinan Berusaha yang Berlaku Efektif Sebelum Implementasi UU No. 11 Tahun 2020", { exact: false }).first()
+).toBeVisible({ timeout: 60000 });
+
+// Placeholder yang sama muncul 2x (label + input) -> wajib .first()
+await page.locator("input[placeholder='Masukan Penerbit Izizn']").first().fill(NAMA_USAHA_TEST);
+await page.locator("input[placeholder='Masukan Nomor Izin']").first().fill(NAMA_USAHA_TEST);
+
+// Tanggal Terbit = tanggal 1 bulan berjalan
+const tanggalTerbit = page.locator("input[name='date']").first();
+await tanggalTerbit.click();
+await page.locator(XPATH_TANGGAL_01).click();
+await expect(tanggalTerbit).toHaveValue(/^01\/\d{2}\/\d{4}$/);
+
+const grupDokumen = page
+  .getByText("Dokumen izin", { exact: true })
+  .first()
+  .locator("xpath=ancestor::*[.//button[normalize-space()='Pilih Dokumen']][1]");
+const fileChooser = page.waitForEvent("filechooser");
+await grupDokumen.getByRole("button", { name: "Pilih Dokumen" }).click();
+await (await fileChooser).setFiles(FILE_DOKUMEN);
+```
+
+`XPATH_TANGGAL_01` sama dengan date picker Penguasaan Lahan:
+
+```js
+const XPATH_TANGGAL_01 =
+  "(//div[substring(@data-v-date, string-length(@data-v-date) - string-length('-01') + 1) = '-01'])[1]";
+```
+
+Perhatikan typo asli aplikasi: placeholder-nya `Masukan Penerbit Izizn`
+(bukan "Izin") — jangan diperbaiki.
+
+Setelah upload sukses, **wajib** pratinjau dokumen dulu (lihat 5.2) sebelum
+`Proses` — helper `lihatDokumenDanKembali(page)`:
+
+```js
+await expect(page.getByText("SampleDocument.pdf", { exact: false }).first()).toBeVisible();
+await tungguUploadSelesai(page);
+await lihatDokumenDanKembali(page);
+```
+
+Popup `RDTR Tidak Tersedia` bisa muncul **lagi** setelah panel pratinjau ditutup,
+jadi panggil `tutupPopupJikaMuncul` sekali lagi dengan budget pendek (5000 ms)
+tepat sebelum `Proses`.
+
+Tombol akhir bernama **`Proses`** (bukan `Selanjutnya`) dan memunculkan dialog
+**"Yakin Melanjutkan Permohonan Ini?"** dengan teks "dikirim ke Verifikator" +
+tombol `Kembali` / `Mengerti`. Berbeda dari WIUP yang memakai "Yakin Memproses
+Permohonan Ini?" + tombol `Kembali` / `Mengerti` di dalam konteks ESDM.
+
+### 4.4 Helper popup dengan budget pendek
+
+`tutupPopupJikaMuncul` sengaja **tidak** memakai `expect(...).toBeVisible()`
+sebagai penentu: bila popup memang tidak muncul, assertion akan menghabiskan
+timeout penuh. Pola yang dipakai (waitFor + catch) langsung lanjut:
+
+```js
+async function tutupPopupJikaMuncul(page, teksPopup, timeout = 10000) {
+  const popup = page.getByText(teksPopup, { exact: false }).first();
+  const muncul = await popup
+    .waitFor({ state: "visible", timeout })
+    .then(() => true)
+    .catch(() => false);
+  if (muncul) {
+    await page.getByRole("button", { name: "Mengerti" }).last().click();
+    await expect(popup).toHaveCount(0, { timeout: 60000 });
+  }
+}
+```
+
+Default `10000` ms: popup di alur UUCK tampil maksimal ±4 detik setelah aksi
+pemicunya, jadi 10 detik memberi ±2,5x headroom sekaligus menghemat ±10 detik per
+call site yang popup-nya tidak muncul. Jangan turunkan di bawah 8000 — kalau
+staging sedang lambat, popup bisa terlewat dan error muncul di langkah
+berikutnya (dropdown ruang lingkup gagal dibuka), bukan di helper ini.
 
 ---
 
@@ -339,43 +495,61 @@ menampilkan tabel hasil.
 
 Untuk KBLI yang dikecualikan dari KKPR (mis. `05101`), `Tambah Bidang Usaha`
 memicu **dua** dialog: `RDTR Tidak Tersedia` (`Mengerti`) ±4 detik kemudian
-disusul `Kegiatan Usaha Tidak Memerlukan Izin KKPR` (`Lanjutkan`). Karena dialog
-berikutnya bisa langsung menggantikan yang baru ditutup,
-`expect(getByRole("dialog")).toHaveCount(0)` **tidak reliabel**. Pakai helper
-yang menunggu perubahan isi dialog:
+disusul `Kegiatan Usaha Tidak Memerlukan Izin KKPR` (`Lanjutkan`). Untuk `06202`
+biasanya hanya dialog pertama yang muncul, sehingga helper harus tetap lulus
+ketika rangkaian popup berakhir lebih cepat. Karena dialog berikutnya bisa
+langsung menggantikan yang baru ditutup,
+`expect(getByRole("dialog")).toHaveCount(0)` **tidak reliabel**.
+
+**Jangan** memakai loop dengan satu `timeout` panjang untuk semua iterasi. Di
+`06202` hanya satu dialog yang muncul, sehingga iterasi kedua membuang penuh
+`timeout` (30 detik) sebelum menyerah — ini penyebab run 06202 sebelumnya 82 detik.
+Pisahkan jendela tunggu dialog pertama dan dialog lanjutan:
 
 ```js
-async function tutupSemuaPopup(page, batas = 5, timeout = 30000) {
-  const bacaDialogs = () =>
-    page.evaluate(() =>
-      Array.from(document.querySelectorAll('[role="dialog"]')).map((el) =>
-        (el.innerText || "").replace(/\s+/g, " ")
-      )
-    );
+/** Teks semua dialog yang terbuka, digabung; null bila tidak ada. */
+async function teksDialog(page) {
+  const dialogs = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('[role="dialog"]')).map((el) =>
+      (el.innerText || "").replace(/\s+/g, " ")
+    )
+  );
+  return dialogs.length ? dialogs.join(" ") : null;
+}
 
-  for (let i = 0; i < batas; i += 1) {
-    let dialogs = [];
-    const mulai = Date.now();
-    while (Date.now() - mulai < timeout) {
-      dialogs = await bacaDialogs();
-      if (dialogs.length) break;
-      await page.waitForTimeout(300);
-    }
-    if (!dialogs.length) return;
+/** Polling sampai dialog muncul; null bila tidak ada dalam batas waktu. */
+async function tungguDialog(page, timeout) {
+  const selesai = Date.now() + timeout;
+  for (;;) {
+    const teks = await teksDialog(page);
+    if (teks || Date.now() >= selesai) return teks;
+    await page.waitForTimeout(300);
+  }
+}
 
-    const teks = dialogs.join(" ");
+async function tutupPopupBidangUsaha(page, timeoutPertama = 30000, timeoutLanjutan = 3000, batas = 3) {
+  let teks = await tungguDialog(page, timeoutPertama);
+
+  for (let i = 0; i < batas && teks; i += 1) {
     const tombol = /Tidak Memerlukan Izin KKPR/.test(teks) ? "Lanjutkan" : "Mengerti";
     await page.getByRole("button", { name: tombol }).last().click();
 
-    const awal = Date.now();
-    while (Date.now() - awal < timeout) {
-      const sisa = await bacaDialogs();
-      if (!sisa.length || sisa.join(" ") !== teks) break;
+    // Tunggu dialog tertutup atau digantikan dialog lain sebelum membaca ulang.
+    const selesai = Date.now() + 30000;
+    while ((await teksDialog(page)) === teks && Date.now() < selesai) {
       await page.waitForTimeout(300);
     }
+    teks = await tungguDialog(page, timeoutLanjutan);
   }
 }
 ```
+
+Angka `timeoutLanjutan` berasal dari pengukuran trace: dialog lanjutan selalu
+muncul <1 detik (05101: ±0,1 detik; 06202: <1 detik) setelah dialog sebelumnya
+ditutup, jadi 3 detik sudah 3× lipat. Hasil: 05101 ±82 dtk → ±55–58 dtk, 06202
+±82 dtk → ±49 dtk (wall time). Kalau di kemudian hari ada run yang melewatkan
+dialog lanjutan, naikkan `timeoutLanjutan` ke 5000–8000 — jangan kembalikan
+satu `timeout` panjang untuk semua iterasi.
 
 Membiarkan salah satu dialog terbuka membuat klik berikutnya tidak berpengaruh
 dan test menggantung sampai timeout.
@@ -426,6 +600,10 @@ terhadap perubahan urutan, tapi lebih rapuh terhadap perubahan teks.
 
 **7.2 Tanpa modal** (MBR) — cukup satu checkbox lalu tombol `Proses` di halaman.
 
+**7.3 UUCK** — tidak ada modal Pernyataan 7 poin (form hanya 2 langkah). `Proses`
+langsung memunculkan dialog konfirmasi "Yakin Melanjutkan Permohonan Ini?"
+lalu redirect ke halaman `detail-kegiatan`.
+
 ---
 
 ## 8. Blok [F] Verifikasi hasil
@@ -440,6 +618,8 @@ Teks kolom status terpotong ellipsis di tabel, jadi **jangan** assert teks penuh
 | PenguasaanLahan Milik Sendiri | `Persetujuan KKPR Kondisi` + `Menunggu verifikasi kondisi` |
 | SKPBKI | dua dokumen: `Persetujuan KKPR Penilaian (Utama)` + `Belum melengkapi persyaratan`, dan `Pengecualian Berlokasi di Kawasan Industri (Utama)` + `Menunggu Verifikasi K/L` |
 | WIUP 05101 | `Tanpa KKPR (Utama)` + `Terbit Otomatis` (satu baris, keduanya difilter sekaligus) |
+| WIUP 06202 | `Tanpa KKPR (Utama)` + `Terbit Otomatis` (sama seperti 05101) |
+| UUCK | tidak ada dokumen: `Detail Perizinan` tampil, tab `Persyaratan Dasar` ber-`aria-selected=true`, lalu per bagian (`Tata Ruang`, `Lingkungan`) heading terlihat + tabel `Status Pengiriman` hanya berisi `Data tidak ditemukan` dengan jumlah `row` = 2 (header + empty state) |
 
 Gunakan `toContainText` dengan prefiks stabil, atau sertakan karakter `…`
 apa adanya bila memakai `getByText`.
@@ -468,8 +648,10 @@ apa adanya bila memakai `getByText`.
 9. `check({ force: true })` pada radio Vuetify bisa gagal dengan
    `Clicking the checkbox did not change its state` walau elemen ter-resolve;
    klik label teksnya lalu verifikasi dengan `toBeChecked()`.
-
-
-
-
-
+10. Tab pada halaman `detail-kegiatan` ber-role **`tab`**, bukan `button`
+    (`getByRole("button", { name: "Persyaratan Dasar" })` tidak match sama sekali).
+11. Pertanyaan UUCK memakai `value="02"` untuk **Ya**; `value="01"` adalah
+    jawaban "Tidak" milik pertanyaan lain. Jangan copy-paste dari SKPBKI.
+12. State tanggal yang sudah terisi jangan diverifikasi dengan
+    `not.toHaveValue("")` (lolos walau nilainya salah). Pakai pola
+    `toHaveValue(/^01\/\d{2}\/\d{4}$/)`.

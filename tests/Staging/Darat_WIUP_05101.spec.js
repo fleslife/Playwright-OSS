@@ -36,40 +36,46 @@ async function tutupPopupJikaMuncul(page, teksPopup, timeout = 20000) {
   }
 }
 
+/** Teks semua dialog yang terbuka, digabung; null bila tidak ada. */
+async function teksDialog(page) {
+  const dialogs = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('[role="dialog"]')).map((el) =>
+      (el.innerText || "").replace(/\s+/g, " ")
+    )
+  );
+  return dialogs.length ? dialogs.join(" ") : null;
+}
+
+/** Polling sampai dialog muncul; null bila tidak ada dalam batas waktu. */
+async function tungguDialog(page, timeout) {
+  const selesai = Date.now() + timeout;
+  for (;;) {
+    const teks = await teksDialog(page);
+    if (teks || Date.now() >= selesai) return teks;
+    await page.waitForTimeout(300);
+  }
+}
+
 /**
- * Popup bertingkat muncul berurutan (RDTR lalu "Kegiatan Usaha Tidak Memerlukan
- * Izin KKPR") dengan jeda beberapa detik. Dialog berikutnya bisa langsung
- * menggantikan yang baru ditutup, jadi tunggu sampai isi dialog berubah/hilang,
- * bukan menunggu count = 0.
+ * Khusus 05101: popup RDTR lalu "Kegiatan Usaha Tidak Memerlukan Izin KKPR"
+ * muncul berurutan. Dialog pertama butuh waktu karena menunggu server, sedangkan
+ * dialog lanjutan hampir seketika setelah yang sebelumnya ditutup. Jadi dialog
+ * pertama ditunggu panjang, dialog lanjutan hanya diberi jendela pendek supaya
+ * tidak membuang puluhan detik saat rangkaian popup sudah berakhir.
  */
-async function tutupSemuaPopup(page, batas = 5, timeout = 30000) {
-  const bacaDialogs = () =>
-    page.evaluate(() =>
-      Array.from(document.querySelectorAll('[role="dialog"]')).map((el) =>
-        (el.innerText || "").replace(/\s+/g, " ")
-      )
-    );
+async function tutupPopupBidangUsaha(page, timeoutPertama = 30000, timeoutLanjutan = 3000, batas = 3) {
+  let teks = await tungguDialog(page, timeoutPertama);
 
-  for (let i = 0; i < batas; i += 1) {
-    let dialogs = [];
-    const mulai = Date.now();
-    while (Date.now() - mulai < timeout) {
-      dialogs = await bacaDialogs();
-      if (dialogs.length) break;
-      await page.waitForTimeout(300);
-    }
-    if (!dialogs.length) return;
-
-    const teks = dialogs.join(" ");
+  for (let i = 0; i < batas && teks; i += 1) {
     const tombol = /Tidak Memerlukan Izin KKPR/.test(teks) ? "Lanjutkan" : "Mengerti";
     await page.getByRole("button", { name: tombol }).last().click();
 
-    const awal = Date.now();
-    while (Date.now() - awal < timeout) {
-      const sisa = await bacaDialogs();
-      if (!sisa.length || sisa.join(" ") !== teks) break;
+    // Tunggu dialog tertutup atau digantikan dialog lain sebelum membaca ulang.
+    const selesai = Date.now() + 30000;
+    while ((await teksDialog(page)) === teks && Date.now() < selesai) {
       await page.waitForTimeout(300);
     }
+    teks = await tungguDialog(page, timeoutLanjutan);
   }
 }
 
@@ -154,7 +160,7 @@ test("Positive Case: WIUP 05101 (Tanpa KKPR, Terbit Otomatis)", async ({ page })
 
   // KBLI 05101 dikecualikan dari KKPR, jadi muncul popup RDTR lalu popup
   // "Kegiatan Usaha Tidak Memerlukan Izin KKPR". Keduanya memblokir form.
-  await tutupSemuaPopup(page);
+  await tutupPopupBidangUsaha(page);
 
   const barisBidangUsaha = page.getByRole("row").filter({ hasText: KBLI_TEST }).first();
   await expect(barisBidangUsaha).toBeVisible({ timeout: 60000 });
